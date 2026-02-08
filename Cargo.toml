@@ -1,0 +1,15 @@
+[package]
+name = "src"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+tokenizer_macro = { path = "./tokenizer_macro" }
+tokenizer_trait = { path = "./tokenizer_trait" }
+unicode-ident = "1.0.22"
+
+[workspace]
+members = [
+    "tokenizer_macro",
+    "tokenizer_trait",
+]
