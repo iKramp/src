@@ -26,9 +26,6 @@ impl tokenizer_trait::Token for CharLiteral {
                 end_chr = byte_escape.0.value() as char;
                 data = byte_escape.1;
             } else if let Some(unicode_escape) = UnicodeEscape::parse_token(data.clone()) {
-                if unicode_escape.0.is_null() {
-                    return None;
-                }
                 data = unicode_escape.1;
                 end_chr = unicode_escape.0.to_char()?;
             } else {

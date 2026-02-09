@@ -54,21 +54,25 @@ impl tokenizer_trait::Token for UnicodeEscape {
         if data.next()? != '\\' || data.next()? != 'u' || data.next()? != '{' {
             return None;
         }
+        println!("Parsing Unicode escape sequence...");
 
         let mut content = Vec::new();
 
         for i in 0..6 {
             if let Some('}') = data.peek() {
                 if i == 0 {
+                    println!("No hex digits found in Unicode escape sequence");
                     return None; // No hex digits found
                 }
                 data.next(); // Consume the closing '}'
+                println!("Finished parsing Unicode escape sequence: {:?}", content);
                 return Some((
                     Self::from_ascii_sequence(&content)?,
                     data,
                 ));
             }
             let next_char = data.next()?;
+            println!("Read character '{}' in Unicode escape sequence", next_char);
             let digit = match next_char {
                 '0' => 0,
                 '1' => 1,

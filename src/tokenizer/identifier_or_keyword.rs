@@ -100,7 +100,7 @@ impl Token for ReservedRawIdentifier {
     where
         Self: Sized,
     {
-        if data.next()? != 'r' && data.next()? != '#' {
+        if data.next()? != 'r' || data.next()? != '#' {
             return None;
         }
         const RESERVED_RAW_IDENT_TABLE: &[&str] = &["_", "crate", "self", "Self", "super"];

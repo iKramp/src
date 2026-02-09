@@ -22,7 +22,7 @@ impl tokenizer_trait::Token for StringLiteral {
             if *chr == '\\' {
                 //handle escapes
                 if let Some(byte_escape) = ByteEscape::parse_token(data.clone()) {
-                    if byte_escape.0.value() == 0 {
+                    if byte_escape.0.value() >= 0x80 {
                         return None;
                     }
                     content.push(byte_escape.0.value() as char);
@@ -30,9 +30,6 @@ impl tokenizer_trait::Token for StringLiteral {
                     continue;
                 }
                 if let Some(unicode_escape) = UnicodeEscape::parse_token(data.clone()) {
-                    if unicode_escape.0.is_null() {
-                        return None;
-                    }
                     data = unicode_escape.1;
                     content.push(unicode_escape.0.to_char()?);
 

@@ -34,14 +34,14 @@ pub fn tokenize(mut data: ParseIterator, filename: &str) {
         match res {
             Some((token, remaining)) => {
                 data = remaining;
-                println!("Parsed token: {:?}", token);
-                if matches!(token, Token::ReservedToken(_)) {
-                    println!("This is a reserved token.");
+                // println!("Parsed token: {:?}", token);
+                if let Token::ReservedToken(a) = token {
+                    println!("Parsed reserved token: {:?}", a);
                 }
             }
             None => {
                 if data.peek().is_none() {
-                    println!("End of input reached.");
+                    return;
                 } else {
                     println!("Failed to parse token");
                     for _ in 0..1000 {
@@ -54,7 +54,6 @@ pub fn tokenize(mut data: ParseIterator, filename: &str) {
 
                     panic!("Failed to parse token in file {}", filename);
                 }
-                break;
             }
         }
     }

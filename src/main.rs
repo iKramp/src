@@ -15,6 +15,7 @@ fn tokenize_dir_recursively(path: &std::path::Path) -> Vec<(std::path::PathBuf, 
         }
         //print path
         println!("Tokenizing file: {}", path.display());
+    
         let content = std::fs::read_to_string(path).unwrap();
         tokenizer::tokenize(content.as_str().chars().peekable(), path.to_str().unwrap());
         result.push((path.to_path_buf(), ()));
@@ -23,6 +24,9 @@ fn tokenize_dir_recursively(path: &std::path::Path) -> Vec<(std::path::PathBuf, 
 }
 
 fn main() {
+    let start = std::time::Instant::now();
     let dir = std::env::args().nth(1).expect("Please provide a directory path");
     let _tokenized_files = tokenize_dir_recursively(std::path::Path::new(&dir));
+    let end = std::time::Instant::now();
+    println!("Finished tokenizing in {} seconds", (end - start).as_secs_f64());
 }
