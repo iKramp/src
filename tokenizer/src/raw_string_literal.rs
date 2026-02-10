@@ -1,17 +1,17 @@
-use tokenizer_trait::ParseIterator;
+use tokenizer_trait::SrcIterator;
 
-use crate::tokenizer::suffix::Suffix;
+use crate::suffix::Suffix;
 
 
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct RawStringLiteral {
+pub struct RawStringLiteral {
     value: String,
     suffix: Option<Suffix>
 }
 
 impl tokenizer_trait::Token for RawStringLiteral {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != 'r' {
             return None;
         }

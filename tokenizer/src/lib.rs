@@ -1,27 +1,44 @@
-mod identifier_or_keyword;
-mod punctuation;
-mod lifetime_token;
-mod float_literal;
-mod integer_literal;
-mod suffix;
-mod raw_c_string_literal;
-mod c_string_literal;
-mod string_escapes;
-mod raw_byte_string_literal;
-mod byte_string_literal;
-mod byte_literal;
-mod raw_string_literal;
-mod string_literal;
-mod char_literal;
-mod raw_identifier;
-mod reserved_token;
+#![allow(dead_code)]
+
+pub mod byte_literal;
+pub mod byte_string_literal;
+pub mod c_string_literal;
+pub mod char_literal;
+pub mod float_literal;
+pub mod identifier_or_keyword;
+pub mod integer_literal;
+pub mod lifetime_token;
+pub mod punctuation;
+pub mod raw_byte_string_literal;
+pub mod raw_c_string_literal;
+pub mod raw_identifier;
+pub mod raw_string_literal;
+pub mod reserved_token;
+pub mod string_escapes;
+pub mod string_literal;
+pub mod suffix;
 
 use tokenizer_macro::ParseEnumToken;
-use tokenizer_trait::{ParseIterator, Token as TokenTrait};
+use tokenizer_trait::{SrcIterator, Token as TokenTrait};
 
-use crate::tokenizer::{byte_literal::ByteLiteral, byte_string_literal::ByteStringLiteral, c_string_literal::CStringLiteral, char_literal::CharLiteral, float_literal::FloatLiteral, identifier_or_keyword::{IdentifierOrKeyword, RawIdentifier}, integer_literal::IntegerLiteral, lifetime_token::LifetimeToken, punctuation::Punctuation, raw_byte_string_literal::RawByteStringLiteral, raw_c_string_literal::RawCStringLiteral, raw_string_literal::RawStringLiteral, reserved_token::ReservedToken, string_literal::StringLiteral};
+use crate::{
+    byte_literal::ByteLiteral,
+    byte_string_literal::ByteStringLiteral,
+    c_string_literal::CStringLiteral,
+    char_literal::CharLiteral,
+    float_literal::FloatLiteral,
+    identifier_or_keyword::{IdentifierOrKeyword, RawIdentifier},
+    integer_literal::IntegerLiteral,
+    lifetime_token::LifetimeToken,
+    punctuation::Punctuation,
+    raw_byte_string_literal::RawByteStringLiteral,
+    raw_c_string_literal::RawCStringLiteral,
+    raw_string_literal::RawStringLiteral,
+    reserved_token::ReservedToken,
+    string_literal::StringLiteral,
+};
 
-pub fn tokenize(mut data: ParseIterator, filename: &str) {
+pub fn tokenize(mut data: SrcIterator, filename: &str) {
     loop {
         while let Some(chr) = data.peek() {
             if chr.is_whitespace() {
@@ -59,17 +76,8 @@ pub fn tokenize(mut data: ParseIterator, filename: &str) {
     }
 }
 
-#[derive(Debug)]
-struct TempToken;
-
-impl tokenizer_trait::Token for TempToken {
-    fn parse_token(data: ParseIterator) -> Option<(Self, ParseIterator)> {
-        None
-    }
-}
-
 #[derive(ParseEnumToken, Debug)]
-enum Token {
+pub enum Token {
     Comment(Comment),
     ReservedToken(ReservedToken),
     RawIdentifier(RawIdentifier),
@@ -89,16 +97,16 @@ enum Token {
 }
 
 #[derive(ParseEnumToken, Debug)]
-enum Comment {
+pub enum Comment {
     LineComment(LineComment),
     BlockComment(BlockComment),
 }
 
 #[derive(Debug)]
-struct LineComment;
+pub struct LineComment;
 
 impl tokenizer_trait::Token for LineComment {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != '/' || data.next()? != '/' {
             return None;
         }
@@ -113,10 +121,10 @@ impl tokenizer_trait::Token for LineComment {
 }
 
 #[derive(Debug)]
-struct BlockComment;
+pub struct BlockComment;
 
 impl tokenizer_trait::Token for BlockComment {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != '/' || data.next()? != '*' {
             return None;
         }

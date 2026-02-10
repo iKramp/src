@@ -1,4 +1,4 @@
-use tokenizer_trait::{ParseIterator, Token};
+use tokenizer_trait::{SrcIterator, Token};
 
 const STRICT_KEYWORD_LIST: &[&str] = &[
     "_", "as", "async", "await", "break", "const", "continue", "crate", "dyn", "else", "enum",
@@ -13,7 +13,7 @@ const RESERVED_KEYWORD_LIST: &[&str] = &[
 ];
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct IdentifierOrKeyword {
+pub struct IdentifierOrKeyword {
     parsed: String,
 }
 
@@ -24,7 +24,7 @@ impl IdentifierOrKeyword {
 }
 
 impl Token for IdentifierOrKeyword {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)>
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)>
     where
         Self: Sized,
     {
@@ -49,12 +49,12 @@ impl Token for IdentifierOrKeyword {
 }
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct RawIdentifier {
+pub struct RawIdentifier {
     inner: IdentifierOrKeyword,
 }
 
 impl Token for RawIdentifier {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)>
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)>
     where
         Self: Sized,
     {
@@ -67,12 +67,12 @@ impl Token for RawIdentifier {
 }
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct NonKeywordIdentifier {
+pub struct NonKeywordIdentifier {
     inner: IdentifierOrKeyword,
 }
 
 impl Token for NonKeywordIdentifier {
-    fn parse_token(data: ParseIterator) -> Option<(Self, ParseIterator)>
+    fn parse_token(data: SrcIterator) -> Option<(Self, SrcIterator)>
     where
         Self: Sized,
     {
@@ -87,16 +87,16 @@ impl Token for NonKeywordIdentifier {
 }
 
 #[derive(tokenizer_macro::ParseEnumToken, Debug)]
-pub(in crate::tokenizer) enum Identifier {
+pub enum Identifier {
     NonKeywordIdentifier(NonKeywordIdentifier),
     RawIdentifier(RawIdentifier),
 }
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct ReservedRawIdentifier;
+pub struct ReservedRawIdentifier;
 
 impl Token for ReservedRawIdentifier {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)>
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)>
     where
         Self: Sized,
     {

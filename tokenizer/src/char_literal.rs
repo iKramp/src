@@ -1,15 +1,15 @@
-use tokenizer_trait::ParseIterator;
+use tokenizer_trait::SrcIterator;
 
-use crate::tokenizer::{string_escapes::UnicodeEscape, suffix::Suffix};
+use crate::{string_escapes::UnicodeEscape, suffix::Suffix};
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct CharLiteral {
+pub struct CharLiteral {
     value: char,
     suffix: Option<Suffix>,
 }
 
 impl tokenizer_trait::Token for CharLiteral {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != '\'' {
             return None;
         }
@@ -18,7 +18,7 @@ impl tokenizer_trait::Token for CharLiteral {
         if *data.peek()? == '\\' {
             //byte escape
             if let Some(byte_escape) =
-                crate::tokenizer::string_escapes::ByteEscape::parse_token(data.clone())
+                crate::string_escapes::ByteEscape::parse_token(data.clone())
             {
                 if byte_escape.0.value() >= 0x80 {
                     return None;

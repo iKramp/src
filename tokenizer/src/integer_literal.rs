@@ -1,16 +1,15 @@
-use tokenizer_trait::ParseIterator;
+use tokenizer_trait::SrcIterator;
 
-use crate::tokenizer::suffix::SuffixNoE;
+use crate::suffix::SuffixNoE;
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct IntegerLiteral {
+pub struct IntegerLiteral {
     kind: IntegerLiteralKind,
     suffix: Option<SuffixNoE>,
 }
 
 impl tokenizer_trait::Token for IntegerLiteral {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
-        let first_2_chars = data.clone().take(2).collect::<String>();
+    fn parse_token(data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if let Some((bin_literal, data)) = BinLiteral::parse_token(data.clone()) {
             let suffix = SuffixNoE::parse_token(data.clone());
             let new_iter = suffix.as_ref().map_or(data.clone(), |s| s.1.clone());
@@ -117,12 +116,12 @@ pub enum HexDigit {
 }
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct DecLiteral {
+pub struct DecLiteral {
     content: Box<[DecDigit]>,
 }
 
 impl tokenizer_trait::Token for DecLiteral {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         let mut content = Vec::new();
         while let Some(chr) = data.peek() {
             let digit = match chr {
@@ -158,12 +157,12 @@ impl tokenizer_trait::Token for DecLiteral {
 }
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct BinLiteral {
+pub struct BinLiteral {
     content: Box<[BinDigit]>,
 }
 
 impl tokenizer_trait::Token for BinLiteral {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != '0' || data.next()? != 'b' {
             return None;
         }
@@ -194,12 +193,12 @@ impl tokenizer_trait::Token for BinLiteral {
 }
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct OctLiteral {
+pub struct OctLiteral {
     content: Box<[OctDigit]>,
 }
 
 impl tokenizer_trait::Token for OctLiteral {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != '0' || data.next()? != 'o' {
             return None;
         }
@@ -236,12 +235,12 @@ impl tokenizer_trait::Token for OctLiteral {
 }
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct HexLiteral {
+pub struct HexLiteral {
     content: Box<[HexDigit]>,
 }
 
 impl tokenizer_trait::Token for HexLiteral {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != '0' || data.next()? != 'x' {
             return None;
         }

@@ -1,21 +1,22 @@
-use tokenizer_trait::ParseIterator;
+use tokenizer_trait::SrcIterator;
 
-use crate::tokenizer::{string_escapes::ByteEscape, suffix::Suffix};
+use crate::{string_escapes::{ByteEscape, UnicodeEscape}, suffix::Suffix};
 
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct ByteStringLiteral {
+pub struct CStringLiteral {
     value: Vec<u8>,
     suffix: Option<Suffix>
 }
 
-impl tokenizer_trait::Token for ByteStringLiteral {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
-        if data.next()? != 'b' || data.next()? != '"' {
+impl tokenizer_trait::Token for CStringLiteral {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
+        if data.next()? != 'c' || data.next()? != '"' {
             return None;
         }
-    
+
         let mut content = Vec::new();
+
         while let Some(chr) = data.peek() {
             if *chr == '\\' {
                 //handle escapes
@@ -27,7 +28,15 @@ impl tokenizer_trait::Token for ByteStringLiteral {
                     data = byte_escape.1;
                     continue;
                 }
+                if let Some(unicode_escape) = UnicodeEscape::parse_token(data.clone()) {
+                    if unicode_escape.0.is_null() {
+                        return None;
+                    }
+                    data = unicode_escape.1;
+                    content.extend_from_slice(&unicode_escape.0.to_utf8_bytes());
 
+                    continue;
+                }
                 data.next()?;
                 if data.next()? == '\n' { // \LF string continue
                     while let Some(chr) = data.peek() {
@@ -39,14 +48,16 @@ impl tokenizer_trait::Token for ByteStringLiteral {
                     }
                     continue;
                 }
+
+                return None;
             }
+
             let chr = data.next()?;
-            if chr == '\r' {
+            if chr == '\r' || chr == '\0' {
                 return None;
             }
             if chr == '"' {
-                let temp_peekable = data.clone();
-                if let Some(suffix) = Suffix::parse_token(temp_peekable.clone()) {
+                if let Some(suffix) = Suffix::parse_token(data.clone()) {
                     return Some((
                         Self { value: content, suffix: Some(suffix.0) },
                         suffix.1,
@@ -54,15 +65,11 @@ impl tokenizer_trait::Token for ByteStringLiteral {
                 }
                 return Some((
                     Self { value: content, suffix: None },
-                    temp_peekable,
+                    data,
                 ));
             }
-            if !chr.is_ascii() {
-                return None;
-            }
-            content.push(chr as u8);
+            content.extend_from_slice(chr.to_string().as_bytes());
         }
-
         None
     }
 }

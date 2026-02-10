@@ -42,7 +42,7 @@ pub fn derive_enum_new(input: TokenStream) -> TokenStream {
 
     let r#gen = quote::quote! {
         impl #impl_generics tokenizer_trait::Token for #name #ty_generics #where_clause {
-            fn parse_token(data: tokenizer_trait::ParseIterator) -> Option<(Self, tokenizer_trait::ParseIterator)> {
+            fn parse_token(data: tokenizer_trait::SrcIterator) -> Option<(Self, tokenizer_trait::SrcIterator)> {
                 #(#variant_arms)*
                 None
             }
@@ -84,7 +84,7 @@ pub fn derive_struct_new(input: TokenStream) -> TokenStream {
 
     let r#gen = quote::quote! {
         impl #impl_generics tokenizer_trait::Token for #name #ty_generics #where_clause {
-            fn parse_token(data: tokenizer_trait::ParseIterator) -> Option<(Self, TokenizerTrait::ParseIterator)> {
+            fn parse_token(data: tokenizer_trait::SrcIterator) -> Option<(Self, tokenizer_trait::SrcIterator)> {
                 let mut iter = data;
 
                 #(#field_arms)*

@@ -1,5 +1,3 @@
-mod tokenizer;
-
 fn tokenize_dir_recursively(path: &std::path::Path) -> Vec<(std::path::PathBuf, ())> {
     let mut result = Vec::new();
     if path.is_dir() {

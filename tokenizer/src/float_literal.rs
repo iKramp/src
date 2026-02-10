@@ -1,12 +1,12 @@
-use tokenizer_trait::{ParseIterator, Token};
+use tokenizer_trait::{SrcIterator, Token};
 
-use crate::tokenizer::{
+use crate::{
     integer_literal::DecLiteral,
     suffix::{Suffix, SuffixNoE},
 };
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct FloatLiteral {
+pub struct FloatLiteral {
     whole_part: DecLiteral,
     fractional_part: Option<DecLiteral>,
     exponent_part: Option<ExponentPart>,
@@ -14,7 +14,7 @@ pub(in crate::tokenizer) struct FloatLiteral {
 }
 
 impl tokenizer_trait::Token for FloatLiteral {
-    fn parse_token(data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(data: SrcIterator) -> Option<(Self, SrcIterator)> {
         let (whole_part, data) = DecLiteral::parse_token(data)?;
 
         if let Some(parsed) = parse_third_form(data.clone()) {
@@ -57,7 +57,7 @@ impl tokenizer_trait::Token for FloatLiteral {
     }
 }
 
-fn parse_first_form(mut data: ParseIterator) -> Option<ParseIterator> {
+fn parse_first_form(mut data: SrcIterator) -> Option<SrcIterator> {
     if data.next()? != '.' {
         return None;
     }
@@ -71,8 +71,8 @@ fn parse_first_form(mut data: ParseIterator) -> Option<ParseIterator> {
 }
 
 fn parse_second_form(
-    mut data: ParseIterator,
-) -> Option<(ParseIterator, DecLiteral, Option<SuffixNoE>)> {
+    mut data: SrcIterator,
+) -> Option<(SrcIterator, DecLiteral, Option<SuffixNoE>)> {
     if data.next()? != '.' {
         return None;
     }
@@ -84,9 +84,9 @@ fn parse_second_form(
 }
 
 fn parse_third_form(
-    mut data: ParseIterator,
+    mut data: SrcIterator,
 ) -> Option<(
-    ParseIterator,
+    SrcIterator,
     Option<DecLiteral>,
     ExponentPart,
     Option<Suffix>,
@@ -119,7 +119,7 @@ struct ExponentPart {
 }
 
 impl tokenizer_trait::Token for ExponentPart {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         let marker = data.next()?;
         let sign;
         if marker != 'e' && marker != 'E' {

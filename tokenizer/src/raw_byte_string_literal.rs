@@ -1,18 +1,17 @@
-use tokenizer_trait::ParseIterator;
+use tokenizer_trait::SrcIterator;
 
-use crate::tokenizer::suffix::Suffix;
-
+use crate::suffix::Suffix;
 
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct RawCStringLiteral {
+pub struct RawByteStringLiteral {
     value: Box<[u8]>,
     suffix: Option<Suffix>
 }
 
-impl tokenizer_trait::Token for RawCStringLiteral {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
-        if data.next()? != 'c' || data.next()? != 'r' {
+impl tokenizer_trait::Token for RawByteStringLiteral {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
+        if data.next()? != 'b' || data.next()? != 'r' {
             return None;
         }
         let mut num_hashes = 0;
@@ -32,7 +31,7 @@ impl tokenizer_trait::Token for RawCStringLiteral {
         let mut parsed = Vec::new();
 
         while let Some(chr) = data.next() {
-            if chr == '\r' || chr == '\0' {
+            if chr == '\r' {
                 return None;
             }
             if chr == '"' {
@@ -58,7 +57,10 @@ impl tokenizer_trait::Token for RawCStringLiteral {
                     ));
                 }
             }
-            parsed.extend_from_slice(&chr.to_string().into_bytes());
+            if !chr.is_ascii() {
+                return None;
+            }
+            parsed.push(chr as u8);
         }
 
 

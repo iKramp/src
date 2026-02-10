@@ -1,17 +1,17 @@
-use tokenizer_trait::ParseIterator;
+use tokenizer_trait::SrcIterator;
 
-use crate::tokenizer::{string_escapes::{ByteEscape, UnicodeEscape}, suffix::Suffix};
+use crate::{string_escapes::{ByteEscape, UnicodeEscape}, suffix::Suffix};
 
 
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct StringLiteral {
+pub struct StringLiteral {
     value: String,
     suffix: Option<Suffix>
 }
 
 impl tokenizer_trait::Token for StringLiteral {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != '"' {
             return None;
         }

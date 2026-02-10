@@ -1,10 +1,8 @@
-use tokenizer_trait::ParseIterator;
-
-use crate::tokenizer::integer_literal::HexDigit;
+use tokenizer_trait::SrcIterator;
 
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct ByteEscape {
+pub struct ByteEscape {
     byte: u8,
 }
 
@@ -15,7 +13,7 @@ impl ByteEscape {
 }
 
 impl tokenizer_trait::Token for ByteEscape {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != '\\' {
             return None;
         }
@@ -45,12 +43,12 @@ impl tokenizer_trait::Token for ByteEscape {
 }
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct UnicodeEscape {
+pub struct UnicodeEscape {
     bytes: Box<[u8]>,
 }
 
 impl tokenizer_trait::Token for UnicodeEscape {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != '\\' || data.next()? != 'u' || data.next()? != '{' {
             return None;
         }

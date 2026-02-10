@@ -1,16 +1,16 @@
-use tokenizer_trait::ParseIterator;
+use tokenizer_trait::SrcIterator;
 
-use crate::tokenizer::IdentifierOrKeyword;
+use crate::IdentifierOrKeyword;
 
 
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct Suffix {
+pub struct Suffix {
     parsed: IdentifierOrKeyword,
 }
 
 impl tokenizer_trait::Token for Suffix {
-    fn parse_token(data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(data: SrcIterator) -> Option<(Self, SrcIterator)> {
         let inner = IdentifierOrKeyword::parse_token(data)?;
         if inner.0.parsed() == "_" {
             return None;
@@ -33,12 +33,12 @@ impl Suffix {
 }
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct SuffixNoE {
+pub struct SuffixNoE {
     parsed: Suffix,
 }
 
 impl tokenizer_trait::Token for SuffixNoE {
-    fn parse_token(data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(data: SrcIterator) -> Option<(Self, SrcIterator)> {
         let inner = Suffix::parse_token(data)?;
         if inner.0.parsed().starts_with('e') || inner.0.parsed().starts_with('E') {
             return None;

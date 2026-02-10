@@ -1,15 +1,15 @@
-use tokenizer_trait::ParseIterator;
+use tokenizer_trait::SrcIterator;
 
-use crate::tokenizer::{IdentifierOrKeyword, identifier_or_keyword::NonKeywordIdentifier};
+use crate::{IdentifierOrKeyword, identifier_or_keyword::NonKeywordIdentifier};
 
 #[derive(Debug)]
-pub(in crate::tokenizer) enum LifetimeToken {
+pub enum LifetimeToken {
     Regular(IdentifierOrKeyword),
     Raw(RawLifetime),
 }
 
 impl tokenizer_trait::Token for LifetimeToken {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         //try raw
         if let Some(raw_lifetime) = RawLifetime::parse_token(data.clone()) {
             return Some((Self::Raw(raw_lifetime.0), raw_lifetime.1));
@@ -27,13 +27,14 @@ impl tokenizer_trait::Token for LifetimeToken {
     }
 }
 
-pub(in crate::tokenizer) enum LifetimeOrLabel {
+#[derive(Debug)]
+pub enum LifetimeOrLabel {
     Regular(NonKeywordIdentifier),
     Raw(RawLifetime),
 }
 
 impl tokenizer_trait::Token for LifetimeOrLabel {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         //try raw
         if let Some(raw_lifetime) = RawLifetime::parse_token(data.clone()) {
             return Some((Self::Raw(raw_lifetime.0), raw_lifetime.1));
@@ -52,12 +53,12 @@ impl tokenizer_trait::Token for LifetimeOrLabel {
 }
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct RawLifetime {
+pub struct RawLifetime {
     inner: IdentifierOrKeyword,
 }
 
 impl tokenizer_trait::Token for RawLifetime {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != '\'' || data.next()? != 'r' || data.next()? != '#' {
             return None;
         }
@@ -71,10 +72,10 @@ impl tokenizer_trait::Token for RawLifetime {
 }
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct ReservedRawLifetime;
+pub struct ReservedRawLifetime;
 
 impl tokenizer_trait::Token for ReservedRawLifetime {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != '\'' || data.next()? != 'r' || data.next()? != '#' {
             return None;
         }

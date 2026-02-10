@@ -1,4 +1,4 @@
-use tokenizer_trait::ParseIterator;
+use tokenizer_trait::SrcIterator;
 
 
 #[derive(Debug)]
@@ -58,7 +58,7 @@ pub enum Punctuation {
 }
 
 impl tokenizer_trait::Token for Punctuation {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         //first try match len 3
         let mut data_3_taken = data.clone();
         (0..3).for_each(|_| {

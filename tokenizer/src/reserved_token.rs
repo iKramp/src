@@ -1,9 +1,12 @@
-use crate::tokenizer::{
-    self, IdentifierOrKeyword, StringLiteral, identifier_or_keyword::ReservedRawIdentifier, integer_literal::{BinLiteral, DecLiteral, HexLiteral, OctLiteral}, lifetime_token::ReservedRawLifetime
+use crate::{
+    IdentifierOrKeyword, StringLiteral,
+    identifier_or_keyword::ReservedRawIdentifier,
+    integer_literal::{BinLiteral, DecLiteral, HexLiteral, OctLiteral},
+    lifetime_token::ReservedRawLifetime,
 };
 
 #[derive(Debug, tokenizer_macro::ParseEnumToken)]
-pub(in crate::tokenizer) enum ReservedToken {
+pub enum ReservedToken {
     ReservedGuardedStringLiteral(ReservedGuardedStringLiteral),
     ReservedNumber(ReservedNumber),
     ReservedPounds(ReservedPounds),
@@ -16,12 +19,12 @@ pub(in crate::tokenizer) enum ReservedToken {
 }
 
 #[derive(Debug)]
-struct ReservedGuardedStringLiteral;
+pub struct ReservedGuardedStringLiteral;
 
 impl tokenizer_trait::Token for ReservedGuardedStringLiteral {
     fn parse_token(
-        mut data: tokenizer_trait::ParseIterator,
-    ) -> Option<(Self, tokenizer_trait::ParseIterator)> {
+        mut data: tokenizer_trait::SrcIterator,
+    ) -> Option<(Self, tokenizer_trait::SrcIterator)> {
         if data.next()? != '#' {
             return None;
         }
@@ -29,20 +32,17 @@ impl tokenizer_trait::Token for ReservedGuardedStringLiteral {
             data.next();
         }
         let string_literal = StringLiteral::parse_token(data)?;
-        Some((
-            Self,
-            string_literal.1,
-        ))
+        Some((Self, string_literal.1))
     }
 }
 
 #[derive(Debug)]
-struct ReservedNumber;
+pub struct ReservedNumber;
 
 impl tokenizer_trait::Token for ReservedNumber {
     fn parse_token(
-        data: tokenizer_trait::ParseIterator,
-    ) -> Option<(Self, tokenizer_trait::ParseIterator)> {
+        data: tokenizer_trait::SrcIterator,
+    ) -> Option<(Self, tokenizer_trait::SrcIterator)> {
         'block: {
             let temp_data = data.clone();
             let Some((_, mut temp_data)) = BinLiteral::parse_token(temp_data) else {
@@ -205,12 +205,12 @@ impl tokenizer_trait::Token for ReservedNumber {
 }
 
 #[derive(Debug)]
-struct ReservedPounds;
+pub struct ReservedPounds;
 
 impl tokenizer_trait::Token for ReservedPounds {
     fn parse_token(
-        mut data: tokenizer_trait::ParseIterator,
-    ) -> Option<(Self, tokenizer_trait::ParseIterator)> {
+        mut data: tokenizer_trait::SrcIterator,
+    ) -> Option<(Self, tokenizer_trait::SrcIterator)> {
         if data.next()? != '#' {
             return None;
         }
@@ -226,12 +226,12 @@ impl tokenizer_trait::Token for ReservedPounds {
 }
 
 #[derive(Debug)]
-struct ReservedTokenDoubleQuote;
+pub struct ReservedTokenDoubleQuote;
 
 impl tokenizer_trait::Token for ReservedTokenDoubleQuote {
     fn parse_token(
-        data: tokenizer_trait::ParseIterator,
-    ) -> Option<(Self, tokenizer_trait::ParseIterator)> {
+        data: tokenizer_trait::SrcIterator,
+    ) -> Option<(Self, tokenizer_trait::SrcIterator)> {
         let mut inner = IdentifierOrKeyword::parse_token(data.clone())?;
         let parsed = inner.0.parsed();
         if ["b", "c", "r", "br", "cr"].contains(&parsed) {
@@ -246,12 +246,12 @@ impl tokenizer_trait::Token for ReservedTokenDoubleQuote {
 }
 
 #[derive(Debug)]
-struct ReservedTokenLifetime;
+pub struct ReservedTokenLifetime;
 
 impl tokenizer_trait::Token for ReservedTokenLifetime {
     fn parse_token(
-        mut data: tokenizer_trait::ParseIterator,
-    ) -> Option<(Self, tokenizer_trait::ParseIterator)> {
+        mut data: tokenizer_trait::SrcIterator,
+    ) -> Option<(Self, tokenizer_trait::SrcIterator)> {
         if data.next()? != '\'' {
             return None;
         }
@@ -268,12 +268,12 @@ impl tokenizer_trait::Token for ReservedTokenLifetime {
 }
 
 #[derive(Debug)]
-struct ReservedTokenPound;
+pub struct ReservedTokenPound;
 
 impl tokenizer_trait::Token for ReservedTokenPound {
     fn parse_token(
-        mut data: tokenizer_trait::ParseIterator,
-    ) -> Option<(Self, tokenizer_trait::ParseIterator)> {
+        data: tokenizer_trait::SrcIterator,
+    ) -> Option<(Self, tokenizer_trait::SrcIterator)> {
         let mut inner = IdentifierOrKeyword::parse_token(data.clone())?;
         let parsed = inner.0.parsed();
         if ["r", "br", "cr"].contains(&parsed) {
@@ -288,12 +288,12 @@ impl tokenizer_trait::Token for ReservedTokenPound {
 }
 
 #[derive(Debug)]
-struct ReservedTokenSingleQuote;
+pub struct ReservedTokenSingleQuote;
 
 impl tokenizer_trait::Token for ReservedTokenSingleQuote {
     fn parse_token(
-        data: tokenizer_trait::ParseIterator,
-    ) -> Option<(Self, tokenizer_trait::ParseIterator)> {
+        data: tokenizer_trait::SrcIterator,
+    ) -> Option<(Self, tokenizer_trait::SrcIterator)> {
         let mut inner = IdentifierOrKeyword::parse_token(data)?;
         if inner.0.parsed() == "b" {
             return None;

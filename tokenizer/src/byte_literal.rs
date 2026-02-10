@@ -1,17 +1,17 @@
-use tokenizer_trait::ParseIterator;
+use tokenizer_trait::SrcIterator;
 
-use crate::tokenizer::suffix::Suffix;
+use crate::suffix::Suffix;
 
 
 
 #[derive(Debug)]
-pub(in crate::tokenizer) struct ByteLiteral {
+pub struct ByteLiteral {
     value: u8,
     suffix: Option<Suffix>
 }
 
 impl tokenizer_trait::Token for ByteLiteral {
-    fn parse_token(mut data: ParseIterator) -> Option<(Self, ParseIterator)> {
+    fn parse_token(mut data: SrcIterator) -> Option<(Self, SrcIterator)> {
         if data.next()? != 'b' || data.next()? != '\'' {
             return None;
         }
@@ -19,7 +19,7 @@ impl tokenizer_trait::Token for ByteLiteral {
         let byte;
         if *data.peek()? == '\\' {
             //byte escape
-            if let Some(byte_escape) = crate::tokenizer::string_escapes::ByteEscape::parse_token(data.clone()) {
+            if let Some(byte_escape) = crate::string_escapes::ByteEscape::parse_token(data.clone()) {
                 if byte_escape.0.value() == 0 {
                     return None;
                 }

@@ -1,4 +1,4 @@
-use crate::tokenizer::IdentifierOrKeyword;
+use crate::IdentifierOrKeyword;
 
 
 #[derive(Debug)]
@@ -7,7 +7,7 @@ struct RawIdentifier {
 }
 
 impl tokenizer_trait::Token for RawIdentifier {
-    fn parse_token(mut data: tokenizer_trait::ParseIterator) -> Option<(Self, tokenizer_trait::ParseIterator)> {
+    fn parse_token(mut data: tokenizer_trait::SrcIterator) -> Option<(Self, tokenizer_trait::SrcIterator)> {
         if data.next()? == 'r' && data.next()? == '#' {
             let inner = IdentifierOrKeyword::parse_token(data)?;
             return Some((Self { inner: inner.0 }, inner.1));
