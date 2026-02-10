@@ -13,7 +13,7 @@ enum TokenType {
     Field(Ident, syn::Type), // Field name and type
     Optional,                // Field name and type
     Repeating(usize, usize), // Min, max, field name and type
-    ScopeStart,
+    ScopeStart(String),
     ScopeEnd,
 }
 
@@ -33,7 +33,7 @@ impl Debug for TokenType {
             Self::Repeating(arg0, arg1) => {
                 f.debug_tuple("Repeating").field(arg0).field(arg1).finish()
             }
-            Self::ScopeStart => f.debug_tuple("ScopeStart").finish(),
+            Self::ScopeStart(arg0) => f.debug_tuple("ScopeStart").field(arg0).finish(),
             Self::ScopeEnd => f.debug_tuple("ScopeEnd").finish(),
         }
     }
@@ -73,6 +73,11 @@ pub fn ast_node(_attr: TokenStream, code: TokenStream) -> TokenStream {
                 let meta = &attr.meta;
                 if let syn::Meta::List(list) = meta {
                     let a = list.tokens.to_string();
+                    if !a.starts_with('\"') || !a.ends_with('\"') {
+                        panic!("keyword attribute must be a string literal");
+                    }
+                    //trim
+                    let a = a[1..a.len() - 1].to_string();
                     tokens.push(TokenType::Keyword(a));
                 } else {
                     panic!("keyword attribute must be a list");
@@ -121,7 +126,13 @@ pub fn ast_node(_attr: TokenStream, code: TokenStream) -> TokenStream {
                 // repeating means 0 to infinity
             }
             if attr.path().is_ident("scopestart") {
-                tokens.push(TokenType::ScopeStart);
+                let meta = &attr.meta;
+                if let syn::Meta::List(list) = meta {
+                    let a = list.tokens.to_string();
+                    tokens.push(TokenType::ScopeStart(a));
+                } else {
+                    panic!("scopestart attribute must be a list");
+                }
             }
             if attr.path().is_ident("scopeend") {
                 tokens.push(TokenType::ScopeEnd);
@@ -141,11 +152,13 @@ pub fn ast_node(_attr: TokenStream, code: TokenStream) -> TokenStream {
 }
 
 fn generate_from_tokens(mut tokens: Vec<TokenType>, struct_type: syn::Ident) -> TokenStream {
-    eprintln!("Generating from tokens for type {:?}", struct_type);
     let mut generated = generate_sopes(&mut tokens);
     generated.extend(generate_branches(&mut tokens));
 
     let mut fields = Vec::new();
+    let mut names = Vec::new();
+
+    let mut matchers = Vec::new();
 
     let mut token_index = 0;
     while token_index < tokens.len() {
@@ -154,9 +167,29 @@ fn generate_from_tokens(mut tokens: Vec<TokenType>, struct_type: syn::Ident) -> 
                 fields.push(quote::quote! {
                     #name: #ty
                 });
+                names.push(name.clone());
+                matchers.push(quote::quote! {
+                    let (#name, mut data) = <#ty as AstNode>::parse_node(data)?;
+                });
             }
-            TokenType::Keyword(_) => {}
-            TokenType::Punctuation(_) => {}
+            TokenType::Keyword(keyword) => {
+                matchers.push(quote::quote! {
+                    let tokenizer::Token::IdentifierOrKeyword(ident_or_keyword) = data.next()? else {
+                        return None;
+                    };
+                    if ident_or_keyword.parsed() != #keyword {
+                        return None;
+                    }
+                });
+            }
+            TokenType::Punctuation(punct) => {
+                let punct_ident = syn::Ident::new(punct, Span::call_site().into());
+                matchers.push(quote::quote! {
+                    let tokenizer::Token::Punctuation(tokenizer::punctuation::Punctuation::#punct_ident) = data.next()? else {
+                        return None;
+                    };
+                });
+            }
             TokenType::Optional => {
                 token_index += 1;
                 let TokenType::Field(name, ty) = &tokens[token_index] else {
@@ -165,6 +198,11 @@ fn generate_from_tokens(mut tokens: Vec<TokenType>, struct_type: syn::Ident) -> 
                 fields.push(quote::quote! {
                     #name: Option<#ty>
                 });
+                names.push(name.clone());
+                matchers.push(quote::quote! {
+                    let (#name, mut data) = <Option<#ty> as AstNode>::parse_node(data)?;
+                });
+                
             }
             TokenType::Repeating(_, _) => {
                 token_index += 1;
@@ -176,20 +214,28 @@ fn generate_from_tokens(mut tokens: Vec<TokenType>, struct_type: syn::Ident) -> 
                 fields.push(quote::quote! {
                     #name: Vec<#ty>
                 });
+                names.push(name.clone());
+                matchers.push(quote::quote! {
+                    let (#name, mut data) = <Vec<#ty> as AstNode>::parse_node(data)?;
+                });
             }
             _ => panic!("invalid token found. Probably some syntax error"),
         }
         token_index += 1;
     }
 
-    eprintln!(
-        "Generated fields for struct {:?}: {:?}",
-        struct_type, fields
-    );
-
     let struct_header: TokenStream = quote::quote! {
         struct #struct_type {
             #(#fields),*
+        }
+
+        impl ast_trait::AstNode for #struct_type {
+            fn parse_node(mut data: ast_trait::TokenIterator) -> Option<(Self, ast_trait::TokenIterator)> {
+                #(#matchers)*
+                Some((Self {
+                    #(#names),*
+                }, data))
+            }
         }
     }
     .into();
@@ -206,31 +252,18 @@ fn generate_sopes(tokens: &mut Vec<TokenType>) -> TokenStream {
         };
         let Some(start) = tokens[..end]
             .iter()
-            .rposition(|a| matches!(a, TokenType::ScopeStart))
+            .rposition(|a| matches!(a, TokenType::ScopeStart(_)))
         else {
             panic!("Unmatched scope found");
         };
+        let TokenType::ScopeStart(scope_name) = &tokens[start] else {
+            panic!("Expected ScopeStart token");
+        };
 
-        let (type_token_stream, ty) = generate_scope(&tokens[start..=end]);
+        let (type_token_stream, ty) = generate_scope(&tokens[start..=end], scope_name.clone());
         result.extend(type_token_stream);
 
-        let fields = tokens[(start + 1)..end]
-            .iter()
-            .filter_map(|a| {
-                if let TokenType::Field(name, ty) = a {
-                    Some((name.clone(), ty.clone()))
-                } else {
-                    None
-                }
-            })
-            .collect::<Vec<_>>();
-        let mut combined_name = String::new();
-        for field in &fields {
-            combined_name.push_str(&field.0.to_string());
-            combined_name.push('_');
-        }
-        combined_name.pop(); // Remove the last underscore
-        let combined_name = syn::Ident::new(&combined_name, Span::call_site().into());
+        let combined_name = syn::Ident::new(scope_name, Span::call_site().into());
 
         tokens.splice(
             start..=end,
@@ -240,7 +273,7 @@ fn generate_sopes(tokens: &mut Vec<TokenType>) -> TokenStream {
 
     if let Some(_pos) = tokens
         .iter()
-        .position(|a| matches!(a, TokenType::ScopeStart | TokenType::ScopeEnd))
+        .position(|a| matches!(a, TokenType::ScopeStart(_) | TokenType::ScopeEnd))
     {
         panic!("Unmatched scope found");
     }
@@ -292,25 +325,18 @@ fn generate_branches(tokens: &mut Vec<TokenType>) -> TokenStream {
     result
 }
 
-fn generate_scope(tokens: &[TokenType]) -> (TokenStream, syn::Type) {
+fn generate_scope(tokens: &[TokenType], field_name: String) -> (TokenStream, syn::Type) {
     eprintln!("Generating scope for tokens: {:?}", tokens);
     let tokens = tokens[1..tokens.len() - 1].to_vec(); // Remove the scope start and end tokens
 
-    let fields = tokens
-        .iter()
-        .filter_map(|a| {
-            if let TokenType::Field(name, ty) = a {
-                Some((name.clone(), ty.clone()))
-            } else {
-                None
-            }
-        })
-        .collect::<Vec<_>>();
-    let mut combined_name = String::new();
-    for field in &fields {
-        combined_name.push_str(&field.1.to_token_stream().to_string());
-    }
-    combined_name.push_str("AutoGen");
+    let combined_name = field_name.split("_").map(|s| {
+        let mut c = s.chars();
+        match c.next() {
+            None => String::new(),
+            Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+        }
+    }).collect::<String>() + "AutoGen";
+
 
     let new_struct_type = syn::Ident::new(&combined_name, Span::call_site().into());
 
@@ -324,6 +350,7 @@ fn generate_branch(
     enum_name: String,
 ) -> (TokenStream, syn::Type) {
     let mut cases = Vec::new();
+    let mut types_and_names = Vec::new();
 
     for branch in branches {
         let tokens = branch.0;
@@ -334,57 +361,91 @@ fn generate_branch(
         let mut token_counter = 0;
         while token_counter < tokens.len() {
             let maybe_field = &tokens[token_counter];
-            if let TokenType::Field(_, field_type) = maybe_field {
-                if field_found {
-                    panic!("more han one field in a branch. Use scopes to group together");
+            match maybe_field {
+                TokenType::Field(_, field_type) => {
+                    if field_found {
+                        panic!("more han one field in a branch. Use scopes to group together");
+                    }
+                    cases.push(quote::quote! {
+                        #case_name(#field_type),
+                    });
+                    types_and_names.push((field_type.clone(), case_name.clone()));
+                    field_found = true;
+                },
+                TokenType::Optional => {
+                    token_counter += 1;
+                    let TokenType::Field(_, field_type) = &tokens[token_counter] else {
+                        panic!("optional must be followed by a field");
+                    };
+                    if field_found {
+                        panic!("more han one field in a branch. Use scopes to group together");
+                    }
+                    cases.push(quote::quote! {
+                        #case_name(Option<#field_type>),
+                    });
+                    types_and_names.push((syn::parse_quote!(Option<#field_type>), case_name.clone()));
+                    field_found = true;
                 }
-                cases.push(quote::quote! {
-                    #case_name(#field_type),
-                });
-                field_found = true;
-            } else if let TokenType::Optional = maybe_field {
-                let TokenType::Field(_, field_type) = &tokens[token_counter + 1] else {
-                    panic!("optional must be followed by a field");
-                };
-                if field_found {
-                    panic!("more han one field in a branch. Use scopes to group together");
+                TokenType::Repeating(_, _) => {
+                    token_counter += 1;
+                    let TokenType::Field(_, field_type) = &tokens[token_counter] else {
+                        panic!("repeating must be followed by a field");
+                    };
+                    if field_found {
+                        panic!("more han one field in a branch. Use scopes to group together");
+                    }
+                    cases.push(quote::quote! {
+                        #case_name(Vec<#field_type>),
+                    });
+                    types_and_names.push((syn::parse_quote!(Vec<#field_type>), case_name.clone()));
+                    field_found = true;
+                },
+                _ => {
+                    panic!("only fields, optional, and repeating can be used in branches. Limit with scopes. Found: {:?}", maybe_field);
                 }
-                cases.push(quote::quote! {
-                    #case_name(Option<#field_type>),
-                });
-                field_found = true;
-                token_counter += 1; // Skip the field token
-            } else if let TokenType::Repeating(_, _) = maybe_field {
-                let TokenType::Field(_, field_type) = &tokens[token_counter + 1] else {
-                    panic!("repeating must be followed by a field");
-                };
-                if field_found {
-                    panic!("more han one field in a branch. Use scopes to group together");
-                }
-                cases.push(quote::quote! {
-                    #case_name(Vec<#field_type>),
-                });
-                field_found = true;
-                token_counter += 1; // Skip the field token
-            } else if let TokenType::Branch(_, _) = maybe_field {
-                panic!("nested branches might have to be wrapped in a scope")
             }
             token_counter += 1;
         }
         if !field_found {
-            cases.push(quote::quote! {
-                #case_name,
-            });
+            panic!("no field found in branch. Branches must have exactly one field. Use scopes to group together multiple fields");
         }
     }
 
     let enum_name = format!("{}AutoGen", enum_name);
     let enum_ident = syn::Ident::new(&enum_name, Span::call_site().into());
-    let stream: TokenStream = quote::quote! {
+    let mut enum_def_stream: TokenStream = quote::quote! {
         enum #enum_ident {
             #(#cases)*
         }
     }
     .into();
-    (stream, syn::parse_quote!(#enum_ident))
+
+    let mut matchers = Vec::new();
+
+    for (case_type, case_name) in types_and_names {
+        let case_match_stream = quote::quote! {
+            'block: {
+                let cloned_data = data.clone();
+                if let Some((parsed_data, remaining)) = <#case_type as AstNode>::parse_node(cloned_data) {
+                    return Some((Self::#case_name(parsed_data), remaining));
+                } else {
+                    break 'block;
+                }
+            }
+        };
+        matchers.push(case_match_stream);
+    }
+
+    let enum_match_stream: TokenStream = quote::quote! {
+        impl ast_trait::AstNode for #enum_ident {
+            fn parse_node(data: ast_trait::TokenIterator) -> Option<(Self, ast_trait::TokenIterator)> {
+                #(#matchers)*
+                None
+            }
+        }
+    }.into();
+    
+    enum_def_stream.extend(enum_match_stream);
+
+    (enum_def_stream, syn::parse_quote!(#enum_ident))
 }
