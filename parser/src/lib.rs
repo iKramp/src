@@ -8,29 +8,24 @@ pub struct StructNode {
 
     identifier: Identifier,
     
-    // #[optional]
     #[repeating("*")]
-    #[scopestart]
     generics: GenericParams,
     
     #[optional]
-    #[scopestart]
     where_clause: WhereClause,
-    #[scopeend]
-    #[scopeend]
     
-    #[branch(fields,tst)]
+    #[branch(fields,Fieldless)]
     
-    #[punctuation(";")]
+    #[punctuation(Punctuation::Semicolon)]
     
-    #[branch(fields, tst2)]
+    #[branch(fields,WithFields)]
     
-    #[punctuation("{")]
-    
+    #[punctuation(Punctuation::OpenBrace)]
+
     #[optional]
     struct_fields: StructFields,
     
-    #[punctuation("}")]
+    #[punctuation(Punctuation::CloseBrace)]
     
     #[endbranch(fields)]
     
