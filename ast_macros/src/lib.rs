@@ -12,7 +12,7 @@ enum TokenType {
     EndBranch(String),
     Field(Ident, syn::Type), // Field name and type
     Optional,                // Field name and type
-    Repeating(usize, usize), // Min, max, field name and type
+    Repeating(Option<String>, usize, usize), // Min, max, field name and type
     ScopeStart(String),
     ScopeEnd,
 }
@@ -30,8 +30,8 @@ impl Debug for TokenType {
                 .field(&arg1.to_token_stream().to_string())
                 .finish(),
             Self::Optional => f.debug_tuple("Optional").finish(),
-            Self::Repeating(arg0, arg1) => {
-                f.debug_tuple("Repeating").field(arg0).field(arg1).finish()
+            Self::Repeating(arg0, arg1, arg2) => {
+                f.debug_tuple("Repeating").field(arg0).field(arg1).field(arg2).finish()
             }
             Self::ScopeStart(arg0) => f.debug_tuple("ScopeStart").field(arg0).finish(),
             Self::ScopeEnd => f.debug_tuple("ScopeEnd").finish(),
@@ -89,7 +89,7 @@ pub fn ast_node(_attr: TokenStream, code: TokenStream) -> TokenStream {
                     let a = list.tokens.to_string();
                     tokens.push(TokenType::Punctuation(a));
                 } else {
-                    panic!("keyword attribute must be a list");
+                    panic!("punctuation attribute must be a list");
                 }
             }
             if attr.path().is_ident("branch") {
@@ -122,8 +122,27 @@ pub fn ast_node(_attr: TokenStream, code: TokenStream) -> TokenStream {
                 tokens.push(TokenType::Optional);
             }
             if attr.path().is_ident("repeating") {
-                tokens.push(TokenType::Repeating(0, usize::MAX)); // For simplicity, we can assume
-                // repeating means 0 to infinity
+                let meta = &attr.meta;
+                if let syn::Meta::List(list) = meta {
+                    let a = list.tokens.to_string();
+                    let mut a = a.split(',');
+                    let min = a
+                        .next()
+                        .expect("repeating attribute must have at least a min and max")
+                        .trim()
+                        .parse::<usize>()
+                        .expect("min must be a usize");
+                    let max = a
+                        .next()
+                        .expect("repeating attribute must have at least a min and max")
+                        .trim()
+                        .parse::<usize>()
+                        .expect("max must be a usize");
+                    let separator = a.next().map(|s| s.trim().to_string());
+                    tokens.push(TokenType::Repeating(separator, min, max));
+                } else {
+                    panic!("repeating attribute must be a list");
+                }
             }
             if attr.path().is_ident("scopestart") {
                 let meta = &attr.meta;
@@ -204,7 +223,7 @@ fn generate_from_tokens(mut tokens: Vec<TokenType>, struct_type: syn::Ident) -> 
                 });
                 
             }
-            TokenType::Repeating(_, _) => {
+            TokenType::Repeating(separator, min, max) => {
                 token_index += 1;
                 let TokenType::Field(name, ty) = &tokens[token_index] else {
                     panic!(
@@ -215,9 +234,19 @@ fn generate_from_tokens(mut tokens: Vec<TokenType>, struct_type: syn::Ident) -> 
                     #name: Vec<#ty>
                 });
                 names.push(name.clone());
-                matchers.push(quote::quote! {
-                    let (#name, mut data) = <Vec<#ty> as AstNode>::parse_node(data)?;
-                });
+                match separator {
+                    Some(sep) => {
+                        let sep_ident = syn::Ident::new(sep, Span::call_site().into());
+                        matchers.push(quote::quote! {
+                            let (#name, mut data) = <#ty as AstNode>::parse_repeating(data, Some(tokenizer::punctuation::Punctuation::#sep_ident), #min, #max)?;
+                        });
+                    }
+                    None => {
+                        matchers.push(quote::quote! {
+                            let (#name, mut data) = <#ty as AstNode>::parse_repeating(data, None, #min, #max)?;
+                        });
+                    }
+                }
             }
             _ => panic!("invalid token found. Probably some syntax error"),
         }
@@ -225,6 +254,7 @@ fn generate_from_tokens(mut tokens: Vec<TokenType>, struct_type: syn::Ident) -> 
     }
 
     let struct_header: TokenStream = quote::quote! {
+        #[derive(Debug)]
         struct #struct_type {
             #(#fields),*
         }
@@ -326,7 +356,6 @@ fn generate_branches(tokens: &mut Vec<TokenType>) -> TokenStream {
 }
 
 fn generate_scope(tokens: &[TokenType], field_name: String) -> (TokenStream, syn::Type) {
-    eprintln!("Generating scope for tokens: {:?}", tokens);
     let tokens = tokens[1..tokens.len() - 1].to_vec(); // Remove the scope start and end tokens
 
     let combined_name = field_name.split("_").map(|s| {
@@ -386,19 +415,20 @@ fn generate_branch(
                     types_and_names.push((syn::parse_quote!(Option<#field_type>), case_name.clone()));
                     field_found = true;
                 }
-                TokenType::Repeating(_, _) => {
-                    token_counter += 1;
-                    let TokenType::Field(_, field_type) = &tokens[token_counter] else {
-                        panic!("repeating must be followed by a field");
-                    };
-                    if field_found {
-                        panic!("more han one field in a branch. Use scopes to group together");
-                    }
-                    cases.push(quote::quote! {
-                        #case_name(Vec<#field_type>),
-                    });
-                    types_and_names.push((syn::parse_quote!(Vec<#field_type>), case_name.clone()));
-                    field_found = true;
+                TokenType::Repeating(_, _, _) => {
+                    panic!("repeating in branches not currently supported");
+                    // token_counter += 1;
+                    // let TokenType::Field(_, field_type) = &tokens[token_counter] else {
+                    //     panic!("repeating must be followed by a field");
+                    // };
+                    // if field_found {
+                    //     panic!("more han one field in a branch. Use scopes to group together");
+                    // }
+                    // cases.push(quote::quote! {
+                    //     #case_name(Vec<#field_type>),
+                    // });
+                    // types_and_names.push((syn::parse_quote!(Vec<#field_type>), case_name.clone()));
+                    // field_found = true;
                 },
                 _ => {
                     panic!("only fields, optional, and repeating can be used in branches. Limit with scopes. Found: {:?}", maybe_field);
@@ -414,6 +444,7 @@ fn generate_branch(
     let enum_name = format!("{}AutoGen", enum_name);
     let enum_ident = syn::Ident::new(&enum_name, Span::call_site().into());
     let mut enum_def_stream: TokenStream = quote::quote! {
+        #[derive(Debug)]
         enum #enum_ident {
             #(#cases)*
         }

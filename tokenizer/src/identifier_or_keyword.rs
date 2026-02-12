@@ -92,6 +92,30 @@ pub enum Identifier {
     RawIdentifier(RawIdentifier),
 }
 
+impl Identifier {
+    pub fn parsed(&self) -> &str {
+        match self {
+            Self::NonKeywordIdentifier(inner) => inner.inner.parsed(),
+            Self::RawIdentifier(inner) => inner.inner.parsed(),
+        }
+    }
+
+    pub fn from_other(other: super::Token) -> Option<Self> {
+        match other {
+            super::Token::IdentifierOrKeyword(inner) => {
+                if STRICT_KEYWORD_LIST.contains(&inner.parsed.as_str())
+                    || RESERVED_KEYWORD_LIST.contains(&inner.parsed.as_str())
+                {
+                    return None;
+                }
+                Some(Self::NonKeywordIdentifier(NonKeywordIdentifier { inner }))
+            }
+            super::Token::RawIdentifier(ident) => Some(Self::RawIdentifier(ident)),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct ReservedRawIdentifier;
 
@@ -110,10 +134,7 @@ impl Token for ReservedRawIdentifier {
                 (0..reserved_raw_ident.len()).for_each(|_| {
                     data.next();
                 });
-                return Some((
-                    Self,
-                    data,
-                ));
+                return Some((Self, data));
             }
         }
         None

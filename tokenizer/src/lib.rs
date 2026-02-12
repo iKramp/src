@@ -18,6 +18,8 @@ pub mod string_escapes;
 pub mod string_literal;
 pub mod suffix;
 
+use std::path::Path;
+
 use tokenizer_macro::ParseEnumToken;
 use tokenizer_trait::{SrcIterator, Token as TokenTrait};
 
@@ -38,7 +40,26 @@ use crate::{
     string_literal::StringLiteral,
 };
 
-pub fn tokenize(mut data: SrcIterator, filename: &str) {
+pub fn tokenize_file(filename: &Path) -> Box<[Token]> {
+    let data = std::fs::read_to_string(filename).expect("Failed to read file");
+    let mut data = &data[..];
+    if data.starts_with('\u{FEFF}') {
+        data = &data[3..];
+    }
+    if data.starts_with("#!") {
+        let mut internal_data = data[3..].lines().next().unwrap_or("");
+        internal_data = internal_data.trim();
+        if !internal_data.starts_with('[') {
+            let first_newline = data.find('\n').unwrap_or(data.len());
+            data = &data[first_newline..];
+        }
+    }
+
+    tokenize(data.chars().peekable(), filename)
+}
+
+pub fn tokenize(mut data: SrcIterator, filename: &Path) -> Box<[Token]> {
+    let mut tokens = Vec::new();
     loop {
         while let Some(chr) = data.peek() {
             if chr.is_whitespace() {
@@ -53,12 +74,13 @@ pub fn tokenize(mut data: SrcIterator, filename: &str) {
                 data = remaining;
                 // println!("Parsed token: {:?}", token);
                 if let Token::ReservedToken(a) = token {
-                    println!("Parsed reserved token: {:?}", a);
+                    panic!("Parsed reserved token: {:?}", a);
                 }
+                tokens.push(token);
             }
             None => {
                 if data.peek().is_none() {
-                    return;
+                    return tokens.into_boxed_slice();
                 } else {
                     println!("Failed to parse token");
                     for _ in 0..1000 {
@@ -69,7 +91,7 @@ pub fn tokenize(mut data: SrcIterator, filename: &str) {
                         }
                     }
 
-                    panic!("Failed to parse token in file {}", filename);
+                    panic!("Failed to parse token in file {}", filename.to_str().unwrap());
                 }
             }
         }

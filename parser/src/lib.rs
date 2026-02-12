@@ -1,67 +1,44 @@
 #![allow(dead_code)]
-use ast_macros::{AstNode, ast_node};
-use ast_trait::AstNode;
 
-#[ast_node]
-#[derive(AstNode)]
-pub struct StructNode {
-    #[keyword("struct")]
+mod item;
+mod name;
 
-    identifier: Identifier,
-    
-    #[optional]
-    generics: GenericParams,
-    
-    #[optional]
-    where_clause: WhereClause,
-    
-    #[branch(fields,Fieldless)]
+use std::{collections::HashMap, path::Path};
 
-    #[scopestart(fieldless)]
-    #[punctuation(Semicolon)]
-    #[scopeend]
-    
-    #[branch(fields,WithFields)]
-    
-    #[scopestart(fields)]
-    #[punctuation(LeftCurly)]
+use ast_trait::TokenIterator;
+use tokenizer::tokenize_file;
 
-    #[optional]
-    struct_fields: StructFields,
-    
-    #[punctuation(RightCurly)]
-    #[scopeend]
-    
-    #[endbranch(fields)]
-    
-    end: (),
+pub struct Module {
+    inner_attributes: (),
+    items: (),
 }
 
-#[derive(Debug)]
-struct Identifier;
-impl AstNode for Identifier {
-    fn parse_node(data: ast_trait::TokenIterator) -> Option<(Self, ast_trait::TokenIterator)> {
-        todo!()
-    }
+pub struct Crate {
+    modules: HashMap<Box<[Box<str>]>, Module>,
 }
-#[derive(Debug)]
-struct GenericParams;
-impl AstNode for GenericParams {
-    fn parse_node(data: ast_trait::TokenIterator) -> Option<(Self, ast_trait::TokenIterator)> {
-        todo!()
+
+pub fn parse_crate(root_path: &Path, root_file_name: &str) -> Crate {
+    let mut modules = HashMap::new();
+
+    let mut files_to_parse = Vec::new();
+    files_to_parse.push(Path::new(root_file_name));
+
+    while let Some(file) = files_to_parse.pop() {
+        let mut full_file_path = root_path.to_owned();
+        full_file_path.push(file);
+
+        let tokens = tokenize_file(&full_file_path);
+        let parsed = parse_token_stream(tokens.iter().peekable());
+        // parse tokens to find mod declarations and add them to files_to_parse
+        let k = file
+            .iter()
+            .map(|s| s.to_str().unwrap().into())
+            .collect::<Box<[Box<str>]>>();
+        modules.insert(k, parsed);
     }
+    todo!()
 }
-#[derive(Debug)]
-struct WhereClause;
-impl AstNode for WhereClause {
-    fn parse_node(data: ast_trait::TokenIterator) -> Option<(Self, ast_trait::TokenIterator)> {
-        todo!()
-    }
-}
-#[derive(Debug)]
-struct StructFields;
-impl AstNode for StructFields {
-    fn parse_node(data: ast_trait::TokenIterator) -> Option<(Self, ast_trait::TokenIterator)> {
-        todo!()
-    }
+
+pub fn parse_token_stream(tokens: TokenIterator) -> Module {
+    todo!()
 }

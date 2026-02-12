@@ -1,7 +1,7 @@
 use tokenizer_trait::SrcIterator;
 
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum Punctuation {
     SingleEqual,
     Less,
@@ -12,7 +12,7 @@ pub enum Punctuation {
     Greater,
     DobuleAnd,
     DobuleOr,
-    Exclamation,
+    Bang,
     Tilde,
     Plus,
     Minus,
@@ -110,7 +110,7 @@ impl tokenizer_trait::Token for Punctuation {
             '=' => return Some((Self::SingleEqual, data_1_taken)),
             '<' => return Some((Self::Less, data_1_taken)),
             '>' => return Some((Self::Greater, data_1_taken)),
-            '!' => return Some((Self::Exclamation, data_1_taken)),
+            '!' => return Some((Self::Bang, data_1_taken)),
             '~' => return Some((Self::Tilde, data_1_taken)),
             '+' => return Some((Self::Plus, data_1_taken)),
             '-' => return Some((Self::Minus, data_1_taken)),

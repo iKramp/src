@@ -1,4 +1,6 @@
-fn tokenize_dir_recursively(path: &std::path::Path) -> Vec<(std::path::PathBuf, ())> {
+use tokenizer::tokenize_file;
+
+fn tokenize_dir_recursively(path: &std::path::Path) -> Vec<(std::path::PathBuf, Box<[tokenizer::Token]>)> {
     let mut result = Vec::new();
     if path.is_dir() {
         for entry in std::fs::read_dir(path).unwrap() {
@@ -14,9 +16,8 @@ fn tokenize_dir_recursively(path: &std::path::Path) -> Vec<(std::path::PathBuf, 
         //print path
         println!("Tokenizing file: {}", path.display());
     
-        let content = std::fs::read_to_string(path).unwrap();
-        tokenizer::tokenize(content.as_str().chars().peekable(), path.to_str().unwrap());
-        result.push((path.to_path_buf(), ()));
+        let tokens = tokenize_file(path.to_str().unwrap());
+        result.push((path.to_path_buf(), tokens));
     }
     result
 }
